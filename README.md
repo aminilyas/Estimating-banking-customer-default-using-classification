@@ -8,8 +8,11 @@ This analysis consists of the implementation of 5 classification models:
 - Classification tree
 - K-Neasest Neighbour
 
-Course Name: Financial Data and Machine Learning
+Team Member: Amin ILYAS, Nizar AQACHMAR, Pritam RITU RAJ, Zahi SAMAHA, Zengyi LI
 
-Lecturer: Sébastien Lleo
+Course title: FInancial Data and Machine Learning
 
-Team member: Amin ILYAS, Nizar AQACHMAR, Pritam RITU RAJ, Zahi SAMAHA, Zengyi LI
+Lecturer: Sebastian Lleo
+
+Institution: Neoma Business School
+
