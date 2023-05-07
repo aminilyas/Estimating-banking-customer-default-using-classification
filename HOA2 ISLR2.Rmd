@@ -1,0 +1,382 @@
+---
+title: | 
+  Hands-On Assignment 2\
+  Estimating Retail Banking Customer Default Using Classification Methods\
+author: |
+  Group A\
+  Amin ILYAS  - 15225189\
+  Nizar	AQACHMAR  - 14951833\
+  Pritam	RITU RAJ  - 13132800\
+  Zahi	SAMAHA  - 13827308\
+  Zengyi LI  - 4460090\
+date: "2023-03-05"
+geometry: margin=1.5cm
+output:
+  pdf_document:
+    keep_tex: true
+  html_document: default
+header-includes:
+  - \usepackage{fancyhdr}
+  - \pagestyle{fancy}
+  - \fancyhf{}
+  - \fancyhead[R]{Group A - HOA2 - ISLR2}
+  - \renewcommand{\headrulewidth}{0pt}
+  - \fancyfoot[R]{\thepage}
+  - \fancypagestyle{plain}{\pagestyle{fancy}}
+
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## Step 0 - Objective and Context
+```{r}
+# Import Default data
+library(ISLR2)
+data(Default)
+
+```
+
+## Step 1 - Getting Modelling Started In R Studio
+```{r}
+data.full <- Default
+```
+
+# Step 2 - Data Exploration: Getting to Know Your Data
+```{r}
+summary(data.full)
+
+var(data.full)
+
+cor(data.full[,3:4])
+
+pairs(data.full, main="Default data Scatter Plots")
+```
+
+Based on the output of the data exploration, here are some observations:\
+The dataset contains 10,000 observations, with 9,667 "No" default observations and 333 "Yes" default observations. This suggests that the dataset is imbalanced towards the "No" class.\
+The predictor variables in the dataset are student, balance, and income. Student is a binary variable that indicates whether the customer is a student, while balance and income are continuous variables that represent the average balance on the credit card and the customer's income, respectively.\
+The variance of the predictor variables is quite different, with income having the largest variance and student having the smallest variance.\
+There is a positive correlation between balance and income, which suggests that customers with higher incomes tend to have higher credit card balances.\
+The scatterplot matrix shows that there may be a non-linear relationship between balance and default. Additionally, there does not appear to be a clear linear separation between the "Yes" and "No" default classes. This suggests that a linear classification model may not be appropriate for this dataset.\
+
+## Step 3 - Splitting the Data into a Training and Test Set
+```{r}
+
+# Set seed for reproducibility
+set.seed(123)
+
+# Get indices of rows to include in training set
+train_idx <- sample(nrow(data.full), size = round(0.8 * nrow(data.full)), 
+                    replace = FALSE)
+
+# Create training set
+data.train <- data.full[train_idx, ]
+
+# Create test set
+data.test <- data.full[-train_idx, ]
+```
+
+## Step 4 - Implementing a Logistic Regression
+```{r}
+# Fit logistic regression model
+logistic.fitted <- glm(default ~ student + balance + income, data = data.train, 
+                       family = "binomial")
+summary(logistic.fitted)
+coef(logistic.fitted)
+summary(logistic.fitted)$coefficients[, "Std. Error"]
+```
+In order to determine which coefficients are statistically significant at a 5% significance level, we have to look at the p-values in the summary output of the logistic regression model. Generally, if the p-value associated with a coefficient is less than the significance level (0.05 in this case), we reject the null hypothesis that the coefficient is equal to zero and conclude that the coefficient is statistically significant.\
+
+In the output, we can see that the coefficients for student and balance have p-values less than 0.05, while the coefficient for income has a p-value greater than 0.05. Therefore, we can conclude that the coefficients for student and balance are statistically significant at a 5% significance level, while the coefficient for income is not statistically significant at a 5% significance level.\
+
+This means that there is evidence to suggest that being a student and having a higher credit card balance are associated with a higher probability of default, while there is not enough evidence to suggest that income is associated with default.\
+
+### 4.1 Training Set Performance of the Logistic Regression Model
+```{r}
+# Fit a GLM model
+model <- glm(default ~ student + balance + income, data = data.train, 
+             family = binomial)
+
+# Create vector of predictions for training set
+glm.pred.train <- predict(model, newdata = data.train, type="response")
+glm.pred.train <- ifelse(glm.pred.train > 0.5, 1, 0)
+# Create confusion matrix
+confusion_matrix <- table(glm.pred.train, data.train[,1])
+print(confusion_matrix)
+
+# Compute training set prediction accuracy
+accuracy <- sum(diag(confusion_matrix))/sum(confusion_matrix)
+print(accuracy)
+```
+
+***Question***\
+***1. What is the prediction accuracy?***\
+The prediction accuracy of the logistic regression model on the training set is 97.3125%.\
+***2. How does it compare to a random guess?***\
+If we were to randomly guess the class for each observation in the training set, we would expect to get an accuracy of 50% if the classes are balanced. In the case of the Default dataset, the classes are imbalanced with about 78% of the observations being non-defaults. Therefore, a random guess would have an accuracy of around 78%.\
+
+The prediction accuracy of the logistic regression model on the training set is significantly higher than a random guess. This indicates that the model has some predictive power and is able to capture some of the patterns in the data. However, it's important to note that we cannot rely solely on the training set performance to evaluate the model's performance. We need to test the model on the independent test set to get an unbiased estimate of its performance.\
+
+  
+### 4.2 Test Set Performance of the Logistic Regression Model
+```{r}
+# Create vector of predictions for training set
+glm.pred.test <- predict(model, newdata = data.test, type="response")
+glm.pred.test <- ifelse(glm.pred.test > 0.5, 1, 0)
+
+# Create confusion matrix
+confusion_matrix <- table(glm.pred.test, data.test[,1])
+print(confusion_matrix)
+
+#Compute test set prediction accuracy
+accuracy <- sum(diag(confusion_matrix))/sum(confusion_matrix)
+print(accuracy)
+
+```
+
+
+***Questions***\
+***1. What is the prediction accuracy on the test set?***\
+Prediction accuracy on the test set is 97.40%.\
+***2. How does it compare to the prediction accuracy that you computed for the training set?***\
+The prediction accuracy on the test set is 97.40% which is almost similar to the prediction accuracy on the training set 97.3125%. The difference in accuracy is relatively small, which suggests that the model is working reasonably well to new data.\
+
+### 4.3 Test Set MSE of the Logistic Regression Model
+```{r}
+test_default_binary <- data.test[,1] #convert qualitative data to binary
+test_default_binary <- ifelse(test_default_binary == "Yes", 1, 0)
+test_mse_log <- mean((glm.pred.test - test_default_binary)^2)
+print(test_mse_log)
+```
+
+***Questions: ***\
+***1. What is the test set MSE for the logistic regression?***\
+The test set MSE of the logistic regression model is 0.026.
+
+
+## Step 5 - Implementing a Linear Discriminant Analysis
+```{r}
+
+# Fit the LDA model using student, balance, and income as predictors
+library(MASS)
+lda.fitted <- lda(default ~ student + balance + income, data = data.train)
+summary(lda.fitted)
+coef(lda.fitted)
+```
+
+
+***Questions***\
+***1. What are the coefficients of the model? ***\
+LD1\
+Student Yes :  -1.513689e-01\
+balance        :   2.246048e-03\
+income        :   4.437213e-06\
+
+
+### 5.1 Test Set Performance of the LDA Model
+```{r}
+lda.pred.test <- predict(lda.fitted, newdata = data.test)$class
+print(lda.pred.test)
+
+# Create confusion matrix
+confusion_matrix <- table(lda.pred.test, data.test[,1])
+print(confusion_matrix)
+
+# Compute test set prediction accuracy
+accuracy <- sum(diag(confusion_matrix))/sum(confusion_matrix)
+print(accuracy)
+```
+
+
+***Questions***\
+***1. What is the prediction accuracy of the LDA model on the test set? ***\
+The prediction accuracy of the LDA model on the test set is 97.25%.\
+***2. How does it compare to the prediction accuracy that you computed for the training set? ***\
+The prediction accuracy of the LDA model on the test set is almost similar to the prediction accuracy of the LDA model on the training set . Since, the difference is small, that means the model is not overfitting the data.\
+***3. How does it compare to the test set prediction accuracy of the logistic regression? ***\
+Similar result of accuracy.
+
+### 5.2 Test Set MSE of the LDA Model
+```{r}
+# Calculate the test set MSE
+test_mse_lda <- mean((as.numeric(lda.pred.test) - as.numeric(data.test$default))^2)
+test_mse_lda
+
+```
+
+
+***Questions: ***\
+***1. What is the test set MSE of the LDA model? ***\
+The test set MSE of the LDA model is 0.028. \
+***2. How does it compare to the test set MSE of the logistic regression? ***\
+The test set MSE of the LDA model is 0.028, while the test set MSE of the logistic regression model is 0.026. Therefore, the logistic regression model has a slightly lower test set MSE compared to the LDA model.\
+
+
+
+## Step 6 - Implementing a QDA Model
+```{r}
+# Fit the QDA model using student, balance, and income as predictors
+qda.fitted <- qda(default ~ student + balance + income, data = data.train)
+summary(qda.fitted)
+coef(qda.fitted)
+```
+
+***Questions***\
+***1. What are the coefficients of the model?***\
+The QDA model don’t have coefficients in a way as the logistic regression and LDA models do. Instead, it estimates quadratic boundaries between classes.\
+
+### 6.1 Test Set Performance of the QDA Model
+```{r}
+# Create vector of predictions for the test set
+qda.pred.test <- predict(qda.fitted, newdata = data.test)$class
+print(qda.pred.test)
+
+# Create confusion matrix
+confusion_matrix <- table(as.numeric(qda.pred.test), as.numeric(data.test[,1]))
+print(confusion_matrix)
+
+# Compute test set prediction accuracy
+accuracy <- sum(diag(confusion_matrix))/sum(confusion_matrix)
+print(accuracy)
+
+```
+
+
+***Question***\
+***1. What is the prediction accuracy of the QDA model on the test set? ***\
+The prediction accuracy of the QDA model on the test set is 97.25%.
+***2. How does it compare to the prediction accuracy that you computed for the training set? ***\
+Similar result of accuracy.
+***3. How does it compare to the test set prediction accuracy of the logistic regression and of the LDA model?***\
+The test set prediction accuracy of the QDA model (0.974) is higher than that of the logistic regression model (0.971) but lower than that of the LDA model (0.975)./
+
+### 6.2 Test Set MSE of the QDA Model
+```{r}
+test_mse_qda <- mean((as.numeric(qda.pred.test) - as.numeric(data.test$default))^2)
+test_mse_qda
+```
+
+
+
+***Questions: ***\
+***1. What is the test set MSE of the QDA model? ***\
+The test set MSE of the QDA model is 0.0275.\
+***2. How does it compare to the test set MSE of the logistic regression and LDA models?***\
+The test set MSE of the QDA model (0.0275) is higher than the test set MSE of the logistic regression model (0.026) and little less than LDA model (0.028). This indicates that the QDA model has a higher level of error in its predictions compared to the logistic regression but not LDA models.\
+
+## Step 7 - Implementing a Classification Tree
+```{r}
+library(tree)
+tree.fitted <- tree(default ~ student + balance + income, data = data.train)
+summary(tree.fitted)
+plot(tree.fitted)
+text(tree.fitted, pretty = 0)
+
+#compute the test set MSE for the fitted tree
+# Predict the default status for the test set using the tree model
+tree.pred.test <- predict(tree.fitted, newdata = data.test)
+
+# Calculate the test set MSE
+test_mse_tree <- mean((as.numeric(tree.pred.test)-as.numeric(data.test$default))^2)
+test_mse_tree
+```
+
+***Question:***\
+***1. Explain the tree using the plot? ***\
+process used by the tree algorithm to classify the data. Each node represents a decision based on the values of one of the predictor variables (student, balance, or income), and each branch represents the possible outcomes of that decision (either a "yes" or "no" answer).
+
+The top node, called the root node, represents the first decision based on the variable with the highest predictive power. In this case, the root node splits the data into two groups based on the balance variable. The left branch represents the group with balance values below this threshold, while the right branch represents the group with balance values above the threshold.
+
+Each subsequent node in the tree represents a decision based on another predictor variable. For example, the second node in the left branch represents a decision based on the student variable, while the second node in the right branch represents a decision based on the income variable. The process continues until the tree algorithm reaches a terminal node, which represents the final classification decision.
+
+The plot also shows the number of observations in each node, as well as the predicted classification for each node (either "No" or "Yes"). The text function call is used to label the nodes with this information.\
+
+***2. What is the test set MSE of the QDA model? ***\
+
+***3. How does it compare to the test set MSE of the logistic regression and LDA models?***\
+
+## Step 8 (Optional) - Implementing a -Nearest
+```{r}
+library(class)
+
+data.train$student <- as.numeric(data.train$student)
+data.test$student <- as.numeric(data.test$student)
+
+# Fit five KNN models with k=1,3,5,7,9
+k_values <- c(1, 3, 5, 7, 9)
+knn.fitted <- lapply(k_values, function(k) {
+  knn.fit <- knn(train = data.train[,c("student", "balance", "income")],
+                 test = data.test[,c("student", "balance", "income")],
+                 cl = data.train$default,
+                 k = k)
+  return(knn.fit)
+})
+
+# Compute confusion matrix and prediction accuracy for each model
+for (i in seq_along(k_values)) {
+  knn.pred.test <- knn.fitted[[i]]
+  cm <- table(knn.pred.test, data.test$default)
+  acc <- sum(diag(cm))/sum(cm)
+  cat(sprintf("KNN Model with k=%d:\n", k_values[i]))
+  cat(sprintf("Confusion Matrix:\n%s\n", cm))
+  cat(sprintf("Test Set Prediction Accuracy: %f\n\n", acc))
+}
+
+# Compute test set MSE for each model
+for (i in seq_along(k_values)) {
+  knn.pred.test <- knn.fitted[[i]]
+  mse <- mean((as.numeric(knn.pred.test) - as.numeric(data.test$default))^2)
+  cat(sprintf("KNN Model with k=%d:\n", k_values[i]))
+  cat(sprintf("Test Set MSE: %f\n\n", mse))
+}
+
+```
+
+
+***Question***\
+***1. What is the test set prediction accuracy of the KNN models for a choice of number of neighbours ? ***\ 
+KNN Model with k=1;\
+Test Set Prediction Accuracy: 0.959000\
+
+KNN Model with k=3;\
+Test Set Prediction Accuracy: 0.968500\
+
+KNN Model with k=5;\
+Test Set Prediction Accuracy: 0.968000\
+
+KNN Model with k=7;\
+Test Set Prediction Accuracy: 0.966000\
+
+KNN Model with k=9\
+Test Set Prediction Accuracy: 0.967000\
+
+***2. What is the test set MSE for the KNN models for a choice of number of neighbours? ***\
+KNN Model with k=1:\
+Test Set MSE: 0.041000\
+
+KNN Model with k=3:\
+Test Set MSE: 0.031500\
+
+KNN Model with k=5:\
+Test Set MSE: 0.032000\
+
+KNN Model with k=7:\
+Test Set MSE: 0.034000\
+
+KNN Model with k=9:\
+Test Set MSE: 0.033000\
+
+***3. Which of the KNN model works best? Justify your answer? ***\
+The best model depends on the specific context and requirements of the problem being solved. However, based solely on the performance metrics provided, the KNN model with k=3 seems to be the best option as it has the lowest test set mean squared error (MSE) among the options presented. It strikes a balance between overfitting (as seen in the k=1 model with higher MSE) and underfitting (as seen in the k=7 and k=9 models with higher MSE). However, it is important to note that the decision should not be solely based on the MSE values, as other factors such as interpretability, computational efficiency, and ease of implementation also need to be taken into consideration.\
+***4. How do the prediction accuracy and MSE of this model compare to the test set prediction accuracy and MSE of the logistic regression, LDA, QDA, and classification tree models? ***\
+rediction accuracy and MSE are not always directly comparable across different models, as different models may use different performance metrics and may have different assumptions and limitations. Therefore, it's important to choose appropriate evaluation metrics and interpret them in the context of the specific problem being solved.\
+## Step 9 - Conclusion 
+
+***Question ***\
+***1. Which model would you recommend, if any? ***\
+***2. Justify your answer***\
+Choosing the best model depends on a variety of factors, such as the type and complexity of the problem, the characteristics of the data, the performance metrics that are most relevant to the problem, and any constraints or limitations that need to be taken into account.\
+
+In general, it's important to evaluate multiple models and compare their performance on relevant metrics before making a recommendation. Additionally, it's worth considering factors such as interpretability, computational efficiency, and ease of implementation, as these can also be important considerations in selecting a model.\
